@@ -7,7 +7,7 @@ import Input from "@/components/atoms/Input";
 import Textarea from "@/components/atoms/Textarea";
 import Select from "@/components/atoms/Select";
 
-const TaskModal = ({ isOpen, onClose, onSave, task = null, projectId }) => {
+const TaskModal = ({ isOpen, onClose, onSave, task = null, projectId, parentTask = null, availableTasks = [] }) => {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -46,9 +46,10 @@ const TaskModal = ({ isOpen, onClose, onSave, task = null, projectId }) => {
 
     setIsLoading(true);
     try {
-      const taskData = {
+const taskData = {
         ...formData,
         projectId,
+        parentTaskId: parentTask ? parentTask.Id : (formData.parentTaskId || null),
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null
       };
 

@@ -17,14 +17,14 @@ const COLUMNS = [
 ];
 
 const KanbanBoard = ({ projectId, onTaskCountChange }) => {
-  const [tasks, setTasks] = useState([]);
+const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [parentTask, setParentTask] = useState(null);
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
-
   useEffect(() => {
     loadTasks();
   }, [projectId]);
@@ -45,27 +45,30 @@ const KanbanBoard = ({ projectId, onTaskCountChange }) => {
     }
   };
 
-  const handleSaveTask = async (taskData) => {
+const handleSaveTask = async (taskData) => {
     try {
       if (editingTask) {
         const updatedTask = await taskService.update(editingTask.Id, taskData);
         setTasks(prev => prev.map(task => 
           task.Id === editingTask.Id ? updatedTask : task
         ));
+        toast.success("Task updated successfully");
       } else {
         const newTask = await taskService.create(taskData);
         setTasks(prev => [...prev, newTask]);
+        toast.success(parentTask ? "Subtask created successfully" : "Task created successfully");
       }
       setIsTaskModalOpen(false);
       setEditingTask(null);
+      setParentTask(null);
       if (onTaskCountChange) {
         onTaskCountChange(editingTask ? tasks.length : tasks.length + 1);
       }
     } catch (err) {
+      toast.error("Failed to save task");
       throw new Error("Failed to save task");
     }
   };
-
   const handleDeleteTask = async (taskId) => {
     try {
       await taskService.delete(taskId);
@@ -79,9 +82,23 @@ const KanbanBoard = ({ projectId, onTaskCountChange }) => {
     }
   };
 
-  const handleEditTask = (task) => {
+const handleEditTask = (task) => {
     setEditingTask(task);
     setIsTaskModalOpen(true);
+  };
+
+  const handleCreateSubtask = (task) => {
+    setParentTask(task);
+    setEditingTask(null);
+    setIsTaskModalOpen(true);
+  };
+
+  const getSubtasks = (parentTaskId) => {
+    return tasks.filter(task => task.parentTaskId === parentTaskId);
+  };
+
+  const getMainTasks = () => {
+    return tasks.filter(task => !task.parentTaskId);
   };
 
   const handleDragStart = (e, task) => {
@@ -185,12 +202,14 @@ const KanbanBoard = ({ projectId, onTaskCountChange }) => {
                         </p>
                       </div>
                     ) : (
-                      columnTasks.map((task) => (
+columnTasks.map((task) => (
                         <TaskCard
                           key={task.Id}
                           task={task}
                           onEdit={handleEditTask}
                           onDelete={handleDeleteTask}
+                          onCreateSubtask={handleCreateSubtask}
+                          subtasks={getSubtasks(task.Id)}
                           isDragging={draggedTask?.Id === task.Id}
                           dragHandleProps={{
                             draggable: true,
@@ -207,15 +226,18 @@ const KanbanBoard = ({ projectId, onTaskCountChange }) => {
         })}
       </div>
 
-      <TaskModal
+<TaskModal
         isOpen={isTaskModalOpen}
         onClose={() => {
           setIsTaskModalOpen(false);
           setEditingTask(null);
+          setParentTask(null);
         }}
         onSave={handleSaveTask}
         task={editingTask}
+        parentTask={parentTask}
         projectId={projectId}
+        availableTasks={getMainTasks()}
       />
     </div>
   );

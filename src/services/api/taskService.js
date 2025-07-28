@@ -28,11 +28,12 @@ class TaskService {
     return this.tasks.filter(t => t.projectId === projectId).map(t => ({ ...t }));
   }
 
-  async create(taskData) {
+async create(taskData) {
     await this.delay();
     const newTask = {
       Id: Math.max(...this.tasks.map(t => t.Id), 0) + 1,
       ...taskData,
+      parentTaskId: taskData.parentTaskId || null,
       createdAt: new Date().toISOString(),
       completedAt: null
     };
@@ -40,14 +41,48 @@ class TaskService {
     return { ...newTask };
   }
 
-  async update(id, taskData) {
+async update(id, taskData) {
     await this.delay();
     const index = this.tasks.findIndex(t => t.Id === id);
     if (index === -1) {
       throw new Error("Task not found");
     }
-    this.tasks[index] = { ...this.tasks[index], ...taskData };
+    this.tasks[index] = { 
+      ...this.tasks[index], 
+      ...taskData,
+      parentTaskId: taskData.parentTaskId !== undefined ? taskData.parentTaskId : this.tasks[index].parentTaskId
+    };
     return { ...this.tasks[index] };
+  }
+
+  async getSubtasks(parentTaskId) {
+    await this.delay();
+    return this.tasks.filter(t => t.parentTaskId === parentTaskId).map(t => ({ ...t }));
+  }
+
+  async createSubtask(parentTaskId, taskData) {
+    await this.delay();
+    const parentTask = this.tasks.find(t => t.Id === parentTaskId);
+    if (!parentTask) {
+      throw new Error("Parent task not found");
+    }
+    
+    const subtask = {
+      Id: Math.max(...this.tasks.map(t => t.Id), 0) + 1,
+      ...taskData,
+      parentTaskId: parentTaskId,
+      projectId: parentTask.projectId,
+      createdAt: new Date().toISOString(),
+      completedAt: null
+    };
+    
+    this.tasks.push(subtask);
+    return { ...subtask };
+  }
+
+  async getMainTasks() {
+    await this.delay();
+    return this.tasks.filter(t => !t.parentTaskId).map(t => ({ ...t }));
   }
 
   async delete(id) {
